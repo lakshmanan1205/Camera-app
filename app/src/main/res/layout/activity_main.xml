@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+<androidx.camera.view.PreviewView
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/cameraPreview"
+    />
+    <ImageButton
+        android:layout_width="60sp"
+        android:layout_height="60sp"
+        android:layout_centerHorizontal="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="40sp"
+        android:id="@+id/capture"
+        android:src="@drawable/ic_round_camera_24"
+        android:scaleType="centerCrop"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        app:tint="@color/white" />
+    <ImageButton
+        android:layout_width="40sp"
+        android:layout_height="40sp"
+        android:layout_alignParentEnd="true"
+        android:layout_margin="10sp"
+        android:src="@drawable/ic_round_flash_on_24"
+        app:tint="@color/white"
+        android:id="@+id/toggleFlash"
+        android:background="?attr/selectableItemBackgroundBorderless"/>
+    <ImageButton
+        android:layout_width="40sp"
+        android:layout_height="40sp"
+        android:layout_below="@+id/toggleFlash"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="10sp"
+        android:id="@+id/flipcamera"
+        android:src="@drawable/ic_round_flip_camera_ios_24"
+        app:tint="@color/white"
+        android:background="?attr/selectableItemBackgroundBorderless"/>
+</RelativeLayout>
