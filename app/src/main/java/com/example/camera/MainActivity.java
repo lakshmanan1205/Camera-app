@@ -5,6 +5,7 @@ import android.content.ContentValues;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -39,18 +40,22 @@ import com.google.common.util.concurrent.ListenableFuture;
 
 import java.io.File;
 import java.io.OutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
-    ImageButton capture, toggleFlash, flipCamera;
+    ImageButton capture, toggleFlash, flipCamera, autofocus;
     private PreviewView previewView;
     int cameraFacing = CameraSelector.LENS_FACING_BACK;
+    boolean isAutoFocus = true;
     private final ActivityResultLauncher<String> activityResultLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), new ActivityResultCallback<Boolean>() {
         @Override
         public void onActivityResult(Boolean result) {
             if (result) {
-                startCamera(cameraFacing);
+                startCamera(cameraFacing,isAutoFocus);
             }
         }
     });
@@ -64,12 +69,13 @@ public class MainActivity extends AppCompatActivity {
         capture = findViewById(R.id.capture);
         toggleFlash = findViewById(R.id.toggleFlash);
         flipCamera = findViewById(R.id.flipcamera);
+        autofocus = findViewById(R.id.autofocus);
 
         if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             activityResultLauncher.launch(Manifest.permission.CAMERA);
 
         } else {
-            startCamera(cameraFacing);
+            startCamera(cameraFacing,isAutoFocus);
         }
         flipCamera.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -79,20 +85,32 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     cameraFacing = CameraSelector.LENS_FACING_BACK;
                 }
-                startCamera(cameraFacing);
+                startCamera(cameraFacing,isAutoFocus);
             }
         });
 
     }
 
-    public void startCamera(int CameraFacing) {
+    public void startCamera(int CameraFacing,boolean isAutofocus) {
         int aspectRatio = aspectRatio(previewView.getWidth(), previewView.getHeight());
         ListenableFuture listenableFuture = ProcessCameraProvider.getInstance(this);
         listenableFuture.addListener(() -> {
             try {
                 ProcessCameraProvider processCameraProvider = (ProcessCameraProvider) listenableFuture.get();
                 Preview preview = new Preview.Builder().setTargetAspectRatio(aspectRatio).build();
-                ImageCapture imageCapture = new ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY).setTargetRotation(getWindowManager().getDefaultDisplay().getRotation()).build();
+                ImageCapture imageCapture;
+                ImageCapture.Builder builder = new ImageCapture.Builder();
+
+                if (isAutofocus) {
+                    builder.setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY);
+                } else {
+                    builder.setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY);
+                }
+
+                builder.setTargetRotation(getWindowManager().getDefaultDisplay().getRotation());
+
+                imageCapture=builder.build();
+                //ImageCapture imageCapture = new ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY).setTargetRotation(getWindowManager().getDefaultDisplay().getRotation()).build();
                 CameraSelector cameraSelector = new CameraSelector.Builder().requireLensFacing(cameraFacing).build();
                 processCameraProvider.unbindAll();
                 Camera camera = processCameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture);
@@ -114,6 +132,12 @@ public class MainActivity extends AppCompatActivity {
                         setFlashIcon(camera);
                     }
                 });
+                autofocus.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        setAutofocus(camera);
+                    }
+                });
                 preview.setSurfaceProvider(previewView.getSurfaceProvider());
             } catch (ExecutionException | InterruptedException e) {
                 e.printStackTrace();
@@ -122,19 +146,34 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void takePicture(ImageCapture imageCapture) {
+        //v1
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, "IMG_" + timestamp + ".jpg");
+        contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg");
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            contentValues.put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/CameraX-Images");
+        }
+
+        ImageCapture.OutputFileOptions outputFileOptions = new ImageCapture.OutputFileOptions.Builder(
+                getContentResolver(),
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                contentValues
+        ).build();
         // CAPTURE
-        final File file = new File(getExternalFilesDir(Environment.DIRECTORY_DCIM),"IMG" + System.currentTimeMillis() + ".jpg");
-        ImageCapture.OutputFileOptions outputFileOptions = new ImageCapture.OutputFileOptions.Builder(file).build();
+//        final File file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),"IMG" + System.currentTimeMillis() + ".jpg");
+//        ImageCapture.OutputFileOptions outputFileOptions = new ImageCapture.OutputFileOptions.Builder(file).build();
         imageCapture.takePicture(outputFileOptions, Executors.newCachedThreadPool(), new ImageCapture.OnImageSavedCallback() {
             @Override
             public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        Toast.makeText(MainActivity.this, "Image saved at : " + file.getPath(), Toast.LENGTH_LONG).show();
+                        Toast.makeText(MainActivity.this, "Image saved Succesfully ! " , Toast.LENGTH_LONG).show();
                     }
                 });
-                startCamera(cameraFacing);
+                startCamera(cameraFacing,isAutoFocus);
             }
 
             @Override
@@ -145,7 +184,7 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(MainActivity.this, "Failed to save : " + exception.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
-                startCamera(cameraFacing);
+                startCamera(cameraFacing,isAutoFocus);
             }
         });
     }
@@ -168,7 +207,15 @@ public class MainActivity extends AppCompatActivity {
             });
         }
     }
-
+    private  void setAutofocus(Camera camera){
+        if (isAutoFocus) {
+            isAutoFocus = false;
+            autofocus.setImageResource(R.drawable.ic_round_focus_off_24);
+        } else {
+            isAutoFocus = true;
+            autofocus.setImageResource(R.drawable.ic_round_focus_on_24);
+        }
+    }
     private int aspectRatio(int width, int height) {
         double previewRatio = (double) Math.max(width, height) / Math.min(width, height);
         if (Math.abs(previewRatio - 4.0 / 3.0) <= Math.abs(previewRatio - 16.0 / 9.0)) {

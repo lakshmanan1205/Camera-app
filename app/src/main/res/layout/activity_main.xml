@@ -28,7 +28,7 @@
         android:layout_height="40sp"
         android:layout_alignParentEnd="true"
         android:layout_margin="10sp"
-        android:src="@drawable/ic_round_flash_on_24"
+        android:src="@drawable/ic_round_flash_off_24"
         app:tint="@color/white"
         android:id="@+id/toggleFlash"
         android:background="?attr/selectableItemBackgroundBorderless"/>
@@ -40,6 +40,16 @@
         android:layout_marginEnd="10sp"
         android:id="@+id/flipcamera"
         android:src="@drawable/ic_round_flip_camera_ios_24"
+        app:tint="@color/white"
+        android:background="?attr/selectableItemBackgroundBorderless"/>
+    <ImageButton
+        android:layout_width="40sp"
+        android:layout_height="40sp"
+        android:layout_below="@+id/flipcamera"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="10sp"
+        android:id="@+id/autofocus"
+        android:src="@drawable/ic_round_focus_on_24"
         app:tint="@color/white"
         android:background="?attr/selectableItemBackgroundBorderless"/>
 </RelativeLayout>
