@@ -1,0 +1,4 @@
+mainActivity_v1 --> cameraX + image Capture and saved to temp folder
+mainActivity_v2 --> image capture and stored in gallery and integrate auto-focus functionality
+mainActivity_V3 --> image analysis
+mainActivity --> image capture and crop
