@@ -12,7 +12,9 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
@@ -24,8 +26,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.AspectRatio;
 import androidx.camera.core.Camera;
 import androidx.camera.core.CameraSelector;
+import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
+import androidx.camera.core.ImageProxy;
 import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
@@ -48,6 +52,11 @@ public class MainActivity extends AppCompatActivity{
     boolean isAutoFocus = true;
 
     View frameOverlay;
+    ImageAnalysis imageAnalysis;
+    RelativeLayout layoutCamera,layoutGlare;
+    ImageView capturedImage;
+    Button btnBack;
+
     private final ActivityResultLauncher<String> activityResultLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), new ActivityResultCallback<Boolean>() {
         @Override
         public void onActivityResult(Boolean result) {
@@ -68,6 +77,10 @@ public class MainActivity extends AppCompatActivity{
         flipCamera = findViewById(R.id.flipcamera);
         autofocus = findViewById(R.id.autofocus);
         frameOverlay = findViewById(R.id.frameOverlay);
+        layoutCamera = findViewById(R.id.layout_capture);
+        layoutGlare = findViewById(R.id.layout_glare);
+        capturedImage = findViewById(R.id.capturedImage);
+        btnBack = findViewById(R.id.backButton);
 
         int screenWidth = Resources.getSystem().getDisplayMetrics().widthPixels;
         int screenHeight = Resources.getSystem().getDisplayMetrics().heightPixels;
@@ -97,10 +110,18 @@ public class MainActivity extends AppCompatActivity{
                 startCamera(cameraFacing,isAutoFocus);
             }
         });
+        btnBack.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                layoutGlare.setVisibility(View.INVISIBLE);
+                layoutCamera.setVisibility(View.VISIBLE);
+            }
+        });
 
     }
 
     public void startCamera(int CameraFacing,boolean isAutofocus) {
+        hideGlareLayout();
         int aspectRatio = aspectRatio(previewView.getWidth(), previewView.getHeight());
         ListenableFuture listenableFuture = ProcessCameraProvider.getInstance(this);
         listenableFuture.addListener(() -> {
@@ -123,7 +144,16 @@ public class MainActivity extends AppCompatActivity{
                 CameraSelector cameraSelector = new CameraSelector.Builder().requireLensFacing(cameraFacing).build();
                 processCameraProvider.unbindAll();
 
-
+                //IMAGE ANALYSIS
+                imageAnalysis = new ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
+                imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor(), new ImageAnalysis.Analyzer() {
+                    @Override
+                    public void analyze(@NonNull ImageProxy image) {
+                        Log.d("analyze", "analyze: " + image.getImageInfo().getTimestamp());
+                        image.close();
+                    }
+                });
+                //IMAGE ANALYSIS
                 Camera camera = processCameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture);
                 capture.setOnClickListener(new View.OnClickListener() {
                     @Override
@@ -254,7 +284,44 @@ public class MainActivity extends AppCompatActivity{
 
                         // Perform cropping
                         Bitmap croppedBitmap = Bitmap.createBitmap(fullBitmap, cropX, cropY, cropW, cropH);
-
+                        //GLARE FUNCTIONALITY
+                        //switch UI
+//                        new Thread(() -> {
+//                            GlareDetection glareDetection = new GlareDetection(croppedBitmap);
+//                            boolean laksh = glareDetection.isGlare();
+//                            Log.d("GLARE1", "onImageSaved: " + laksh);
+//
+//                            runOnUiThread(() -> {
+//                                layoutCamera.setVisibility(View.INVISIBLE);
+//                                layoutGlare.setVisibility(View.VISIBLE);
+//                                capturedImage.setImageBitmap(croppedBitmap);
+//
+//                                // Optional: update UI based on glare result
+//                                Toast.makeText(MainActivity.this, "Glare: " + laksh, Toast.LENGTH_SHORT).show();
+//                            });
+//                        }).start();
+//                        if (croppedBitmap != null && !croppedBitmap.isRecycled()) {
+//
+//                        } else {
+//                            Log.e("ERROR", "croppedBitmap is null");
+//                        }
+                        try {
+                            GlareDetection glareDetection = new GlareDetection(croppedBitmap);
+                            boolean laksh = glareDetection.isGlare();
+                            Log.e("GLARE", "onImageSaved: " + laksh);
+                        } catch (Exception e) {
+                            Log.e("GLARE", "GlareDetection failed: " + e.getMessage(), e);
+                            throw new RuntimeException(e);
+                        }
+                        GlareDetection glareDetection = new GlareDetection(croppedBitmap);
+                        boolean laksh = glareDetection.isGlare();
+                        Log.e("GLARE1", "onImageSaved: " + laksh);
+                        runOnUiThread(() -> {
+                            layoutCamera.setVisibility(View.INVISIBLE);
+                            layoutGlare.setVisibility(View.VISIBLE);
+                            capturedImage.setImageBitmap(croppedBitmap);
+                        });
+                        //GLARE FUNCTIONALITY
                         // Save cropped image
                         ContentValues croppedValues = new ContentValues();
                         croppedValues.put(MediaStore.MediaColumns.DISPLAY_NAME, "CROPPED_" + timestamp + ".jpg");
@@ -286,7 +353,9 @@ public class MainActivity extends AppCompatActivity{
             }
         });
     }
-
+    private void hideGlareLayout(){
+        layoutGlare.setVisibility(View.INVISIBLE);
+    }
 
 
 }
